@@ -1,5 +1,5 @@
 import dash
-from dash import dcc, html, Input, Output, State, dash_table
+from dash import dcc, html, Input, Output, State, dash_table, ALL
 import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.express as px
@@ -25,6 +25,7 @@ def load_data():
     try:
         products_path = os.path.join(data_dir, 'products_and_suppliers_combined.csv')
         df_products = pd.read_csv(products_path)
+        df_products = df_products.rename(columns={'SupplierName': 'Supplier'}) 
         df_products['ExpiryDate'] = pd.to_datetime(df_products['ExpiryDate'], errors='coerce')
 
         if 'Weight' not in df_products.columns:
@@ -246,6 +247,7 @@ def get_notifications(stored_data_json):
             'text': f"Item {row['ProductName']} expiring in {days_left} days!",
             'time': f"{days_left} days left"
         })
+
 
     # Static notifications (ensure they are not duplicated if the function is called multiple times)
     notifications.append({'type': 'new_supplier', 'text': "New supplier 'Tech Solutions Inc.' onboarding required.", 'time': "6 hours ago"})
@@ -669,6 +671,7 @@ expiry_management_content = html.Div(
                                     {"name": "STATUS", "id": "STATUS"},
                                     # THIS IS CRUCIAL: 'presentation': 'markdown'
                                      {"name": "ACTIONS", "id": "ACTIONS"}
+                                     
                                 ],
                             data=[],
     editable=False, 
@@ -817,6 +820,8 @@ def display_page(pathname):
         return expiry_management_content
     elif pathname == '/':
         return dashboard_content
+    elif pathname == '/stock-management': # <--- ADD THIS LINE
+        return stock_management_content # <--- ADD THIS LINE
     # Add more conditions for other pages as they are created
     return html.Div([html.H1("404: Not found"), html.P(f"The pathname {pathname} was not recognised...")])
 
@@ -1036,5 +1041,441 @@ def handle_action_cell_click(active_cell, table_data):
             ])
             
     return ""
+
+# --- Stock Management Page Content ---
+stock_management_content = html.Div(
+    [
+        html.Div(
+            [
+                html.H3("Stock Management", className="dashboard-header-title"),
+                html.P("Manage your stock levels, add new items, and update existing items. All weight-based units are in kilograms (kgs).", className="text-muted"),
+                html.Img(src="/assets/user_avatar.png", className="user-avatar")
+            ],
+            className="dashboard-header"
+        ),
+        dbc.Card(
+            [
+                html.Div(
+                    [
+                        dbc.Button(
+                            [html.I(className="bi bi-upload me-2"), "Upload Data"],
+                            id="upload-data-btn",
+                            className="upload-data-btn mb-4"
+                        ),
+                        # Search Bar
+                        dbc.InputGroup(
+                            [
+                                dbc.InputGroupText(html.I(className="bi bi-search")),
+                                dbc.Input(id="stock-search-input", placeholder="Search for items by name, SKU, or supplier...", type="text", className="search-input")
+                            ],
+                            className="mb-4"
+                        ),
+                        # Filter Dropdowns
+                        dbc.Row(
+                            [
+                                dbc.Col(
+                                    dcc.Dropdown(
+                                        id='stock-category-filter',
+                                        options=[{'label': 'All Categories', 'value': 'all'}],
+                                        value='all',
+                                        placeholder="Category",
+                                        clearable=False,
+                                        className="filter-dropdown"
+                                    ),
+                                    md=4
+                                ),
+                                dbc.Col(
+                                    dcc.Dropdown(
+                                        id='stock-supplier-filter',
+                                        options=[{'label': 'All Suppliers', 'value': 'all'}],
+                                        value='all',
+                                        placeholder="Supplier",
+                                        clearable=False,
+                                        className="filter-dropdown"
+                                    ),
+                                    md=4
+                                ),
+                                dbc.Col(
+                                    dcc.Dropdown(
+                                        id='stock-status-filter',
+                                        options=[
+                                            {'label': 'All Statuses', 'value': 'all'},
+                                            {'label': 'In Stock', 'value': 'In Stock'},
+                                            {'label': 'Low Stock', 'value': 'Low Stock'},
+                                            {'label': 'Out of Stock', 'value': 'Out of Stock'}
+                                        ],
+                                        value='all',
+                                        placeholder="Status",
+                                        clearable=False,
+                                        className="filter-dropdown"
+                                    ),
+                                    md=4
+                                ),
+                            ],
+                            className="mb-4"
+                        ),
+                        # Stock Table
+                        dash_table.DataTable(
+                            id='stock-table',
+                            columns=[
+                                {"name": "ITEM NAME", "id": "ITEM NAME"},
+                                {"name": "QUANTITY", "id": "QUANTITY"},
+                                {"name": "SUPPLIER", "id": "SUPPLIER"},
+                                {"name": "CATEGORY", "id": "CATEGORY"},
+                                {"name": "STATUS", "id": "STATUS"},
+                                {"name": "ACTIONS", "id": "ACTIONS", "presentation": "markdown"},
+                                
+                            ],
+
+                            data=[],
+                            editable=False,
+                            page_action='native',
+                            page_size=10,
+                            sort_action="native",
+                            filter_action="none",
+                            markdown_options={"html": True},
+                            style_table={'overflowX': 'auto', 'minWidth': '100%'},
+                            style_header={
+                                'backgroundColor': '#f8f9fa',
+                                'fontWeight': 'bold',
+                                'textAlign': 'left',
+                                'borderBottom': '2px solid #e0e0e0',
+                                'padding': '12px 15px'
+                            },
+                            style_data={
+                                'whiteSpace': 'normal',
+                                'height': 'auto',
+                                'textAlign': 'left',
+                                'padding': '10px 15px',
+                                'borderBottom': '1px solid #e0e0e0'
+                            },
+                            style_cell={
+                                'fontFamily': 'Inter, sans-serif',
+                                'fontSize': '14px',
+                                'color': '#333'
+                            },
+                            style_data_conditional=[
+                                {
+                                    'if': {'column_id': 'STATUS', 'filter_query': '{STATUS} = "In Stock"'},
+                                    'color': '#27ae60',
+                                    'fontWeight': 'bold'
+                                },
+                                {
+                                    'if': {'column_id': 'STATUS', 'filter_query': '{STATUS} = "Low Stock"'},
+                                    'color': '#f39c12',
+                                    'fontWeight': 'bold'
+                                },
+                                {
+                                    'if': {'column_id': 'STATUS', 'filter_query': '{STATUS} = "Out of Stock"'},
+                                    'color': '#e74c3c',
+                                    'fontWeight': 'bold'
+                                },
+                                {
+                                    'if': {'column_id': 'ACTIONS'},
+                                    'textAlign': 'center',
+                                    'padding': '0',
+                                },
+                            ],
+                            css=[
+                                {"selector": ".dash-spreadsheet-top-container", "rule": "display:none"},
+                                {"selector": ".dash-fixed-content", "rule": "width: 100%;"},
+                                {"selector": ".dash-table-container .row", "rule": "margin: 0; flex-wrap: nowrap;"},
+                                {"selector": ".dash-table-container .col-md-12", "rule": "width:100%; padding:0;"},
+                            ]
+                        )
+                    ]
+                )
+            ],
+            className="analytics-card mb-4"
+        ),
+        # --- NEW MODAL FOR STOCK PRODUCT DETAILS ---
+        dbc.Modal(
+            [
+                dbc.ModalHeader(dbc.ModalTitle("Product Details")),
+                dbc.ModalBody(id="stock-product-details-body"), # Content will go here
+                dbc.ModalFooter(
+                    dbc.Button(
+                        "Close", id="close-stock-details-modal", className="ms-auto", n_clicks=0
+                    )
+                ),
+            ],
+            id="stock-details-modal",
+            is_open=False, # Hidden by default
+            size="lg",
+            centered=True,
+        ),
+        # --- END NEW MODAL ---
+    ],
+    className="content"
+)
+
+
+# --- Helper Function for Stock Management Data ---
+def get_stock_data(stored_data_json, search_term='', category_filter='all', supplier_filter='all', status_filter='all'):
+    df_products = pd.read_json(io.StringIO(stored_data_json['products']), orient='split') if stored_data_json.get('products') else pd.DataFrame()
+
+    if df_products.empty:
+        print("df_products is empty in get_stock_data.")
+        return pd.DataFrame().to_dict('records')
+
+    # Ensure 'ProductID' is available early
+    if 'ProductID' not in df_products.columns:
+        print("Warning: 'ProductID' column not found, 'STOCK ID' cannot be generated. Returning empty.")
+        return pd.DataFrame().to_dict('records')
+
+    # Ensure 'quantity' is numeric (important for calculations and comparisons)
+    if 'quantity' in df_products.columns:
+        df_products['quantity'] = pd.to_numeric(df_products['quantity'], errors='coerce').fillna(0)
+    else:
+        print("Warning: 'quantity' column not found in df_products. Returning empty.")
+        return pd.DataFrame().to_dict('records')
+
+    # Ensure 'SupplierName' is renamed to 'Supplier' if coming directly from CSV
+    # This part should ideally be in load_data(), but adding here as a safeguard if not.
+    if 'SupplierName' in df_products.columns and 'Supplier' not in df_products.columns:
+        df_products = df_products.rename(columns={'SupplierName': 'Supplier'})
+    elif 'Supplier' not in df_products.columns:
+        print("Warning: Neither 'SupplierName' nor 'Supplier' column found. Returning empty.")
+        return pd.DataFrame().to_dict('records')
+
+    # --- Calculate Stock Status ---
+    LOW_STOCK_THRESHOLD = 20
+    OUT_OF_STOCK_THRESHOLD = 0
+
+    df_products['STATUS'] = 'In Stock' # Default status
+    df_products.loc[df_products['quantity'] <= OUT_OF_STOCK_THRESHOLD, 'STATUS'] = 'Out of Stock'
+    df_products.loc[(df_products['quantity'] > OUT_OF_STOCK_THRESHOLD) & (df_products['quantity'] <= LOW_STOCK_THRESHOLD), 'STATUS'] = 'Low Stock'
+    
+    # --- Add ACTIONS column (Must be a Markdown string for DataTable rendering) ---
+    # This markdown string will render as a clickable link.
+    df_products['ACTIONS'] = "View" # Corrected to Markdown link
+
+    # --- Apply Filters ---
+    # IMPORTANT: filtered_df must be created *after* all necessary columns (like STATUS, ACTIONS) are added to df_products
+    filtered_df = df_products.copy()
+
+    # Search by Item Name, Product ID (SKU), Supplier
+    if search_term:
+        search_term_lower = search_term.lower()
+        filtered_df = filtered_df[
+            filtered_df['ProductName'].str.lower().str.contains(search_term_lower, na=False) |
+            filtered_df['ProductID'].astype(str).str.lower().str.contains(search_term_lower, na=False) |
+            filtered_df['Supplier'].str.lower().str.contains(search_term_lower, na=False)
+        ]
+
+    # Category Filter
+    if category_filter != 'all':
+        filtered_df = filtered_df[filtered_df['Category'] == category_filter]
+
+    # Supplier Filter
+    if supplier_filter != 'all':
+        filtered_df = filtered_df[filtered_df['Supplier'] == supplier_filter]
+
+    # Status Filter
+    if status_filter != 'all':
+        filtered_df = filtered_df[filtered_df['STATUS'] == status_filter]
+    
+    # --- Combine Quantity with UnitOfMeasure for display (Moved to after filtering) ---
+    # Ensure 'Weight' column exists if needed elsewhere (from previous discussions)
+    if 'Weight' not in filtered_df.columns:
+        filtered_df['Weight'] = 0.5 # Default weight if not present
+
+    if 'quantity' in filtered_df.columns and 'UnitOfMeasure' in filtered_df.columns:
+        filtered_df['DISPLAY_QUANTITY'] = filtered_df['quantity'].astype(str) + ' ' + filtered_df['UnitOfMeasure']
+    else:
+        filtered_df['DISPLAY_QUANTITY'] = filtered_df['quantity'].astype(str)
+        print("Warning: 'UnitOfMeasure' column not found in filtered_df, displaying quantity without units.")
+        
+        
+    
+    # --- Prepare data for the table ---
+    # Define the required columns for the final DataTable display
+    required_cols_for_display = [
+        'ProductID', # Included for use in the modal callback via 'STOCK ID'
+        'ProductName',
+        'DISPLAY_QUANTITY', # Use the new combined quantity + unit column
+        'Supplier',
+        'Category',
+        'STATUS',
+        'ACTIONS'
+    ]
+
+    # Perform a check if all required columns are present in filtered_df before selection
+    for col in required_cols_for_display:
+        if col not in filtered_df.columns:
+            print(f"Error: Required column '{col}' not found in filtered_df for table display. Returning empty.")
+            return pd.DataFrame().to_dict('records')
+
+    # Select and rename columns for DataTable output
+    table_data = filtered_df[required_cols_for_display].rename(columns={
+        'ProductID': 'STOCK ID', # Renamed for display and internal use (e.g., in modal)
+        'ProductName': 'ITEM NAME',
+        'DISPLAY_QUANTITY': 'QUANTITY', # Renamed heading to just 'QUANTITY'
+        'Supplier': 'SUPPLIER',
+        'Category': 'CATEGORY',
+    })
+
+    return table_data.to_dict('records') # Return as list of dictionaries
+
+# --- Callbacks for Stock Management Page ---
+@app.callback(
+    [Output('stock-table', 'data'),
+     Output('stock-category-filter', 'options'),
+     Output('stock-supplier-filter', 'options')],
+    [Input('stored-data', 'data'),
+     Input('stock-search-input', 'value'),
+     Input('stock-category-filter', 'value'),
+     Input('stock-supplier-filter', 'value'),
+     Input('stock-status-filter', 'value')]
+)
+def update_stock_table(data, search_term, category_filter, supplier_filter, status_filter):
+    # Get data for the table based on filters
+    filtered_stock_data = get_stock_data(data, search_term, category_filter, supplier_filter, status_filter)
+
+    # Get unique categories and suppliers for dropdown options
+    df_products = pd.read_json(io.StringIO(data['products']), orient='split') if data.get('products') else pd.DataFrame()
+    
+    categories = [{'label': 'All Categories', 'value': 'all'}]
+    if not df_products.empty and 'Category' in df_products.columns:
+        categories.extend([{'label': cat, 'value': cat} for cat in df_products['Category'].unique()])
+
+    suppliers = [{'label': 'All Suppliers', 'value': 'all'}]
+    if not df_products.empty and 'Supplier' in df_products.columns:
+        suppliers.extend([{'label': sup, 'value': sup} for sup in df_products['Supplier'].unique()])
+    
+    return filtered_stock_data, categories, suppliers
+
+# --- Callback for 'View' button in Stock Table (using active_cell) ---
+@app.callback(
+    [Output('stock-details-modal', 'is_open'),
+     Output('stock-product-details-body', 'children')],
+    [Input('stock-table', 'active_cell'), # <--- CHANGED: Listen to active_cell of the DataTable
+     Input('close-stock-details-modal', 'n_clicks')], # Input for closing the modal
+    [State('stock-table', 'data'),         # <--- ADDED: State to access the full table data
+     State('stock-details-modal', 'is_open')],
+    prevent_initial_call=True
+)
+def toggle_stock_details_modal(active_cell, close_n_clicks, table_data, is_open): # <--- UPDATED ARGUMENTS
+    ctx = dash.callback_context
+
+    if not ctx.triggered:
+        raise dash.exceptions.PreventUpdate
+
+    trigger_id = ctx.triggered[0]['prop_id']
+
+    # Handle close button click
+    if "close-stock-details-modal" in trigger_id and close_n_clicks:
+        return False, dash.no_update # Close modal, no update to body
+
+    # Handle active_cell click on the table
+    # Check if the trigger was from 'stock-table.active_cell' and if a cell was actually clicked
+    if "stock-table.active_cell" in trigger_id and active_cell:
+        row_index = active_cell['row']
+        column_id = active_cell['column_id']
+
+        # Only proceed if the clicked column is 'ACTIONS'
+        if column_id == 'ACTIONS':
+            clicked_row_data = table_data[row_index] # Get the data for the clicked row
+            stock_id = clicked_row_data.get('STOCK ID', 'N/A') # Get the stock ID from the row data
+
+            # Basic Information
+            item_name = clicked_row_data.get('ITEM NAME', 'N/A') # Mapped from ProductName
+            category = clicked_row_data.get('CATEGORY', 'N/A')
+            supplier_name = clicked_row_data.get('SUPPLIER', 'N/A') # Mapped from SupplierName
+
+            # Get raw numeric quantity and unit of measure for calculations and separate display
+            raw_quantity = clicked_row_data.get('StockQuantity', 'N/A')
+            unit_of_measure = clicked_row_data.get('UnitOfMeasure', 'N/A')
+
+            # Price and Profitability
+            cost_price = clicked_row_data.get('Cost', 'N/A')
+            selling_price = clicked_row_data.get('Price', 'N/A')
+
+            # Inventory Details
+            minimum_stock = clicked_row_data.get('ReorderPoint', 'N/A')
+            last_restocked = 'N/A' # Not in CSV - will be N/A
+
+            # Supplier contact
+            phone = 'N/A' # Not in CSV - will be N/A
+            email = 'N/A' # Not in CSV - will be N/A
+
+            # --- Calculations for Price and Profitability ---
+            profit_margin = 'N/A'
+            total_cost_value = 'N/A'
+            expected_revenue = 'N/A'
+            estimated_profit = 'N/A'
+
+            try:
+                numeric_cost = float(cost_price)
+                numeric_selling = float(selling_price)
+                numeric_quantity = float(raw_quantity)
+
+                if numeric_selling != 0:
+                    profit_margin = f"{((numeric_selling - numeric_cost) / numeric_selling) * 100:.2f}%"
+                
+                total_cost_value = f"₹{numeric_cost * numeric_quantity:.2f}"
+                expected_revenue = f"₹{numeric_selling * numeric_quantity:.2f}"
+                estimated_profit = f"₹{(numeric_selling - numeric_cost) * numeric_quantity:.2f}"
+
+            except (ValueError, TypeError):
+                # If any of the values are not numeric, calculations will remain N/A
+                pass
+
+            # --- Construct the modal content based on your detailed list ---
+            details_content = html.Div([
+                html.H4("Product Details", className="mb-3"), # Main modal title
+
+                # Basic Information
+                html.H5("Basic Information", className="mb-2 mt-4"),
+                dbc.Row([
+                    dbc.Col(html.P(f"Item Name: {item_name}"), width=6),
+                    dbc.Col(html.P(f"Category: {category}"), width=6),
+                ]),
+                dbc.Row([
+                    dbc.Col(html.P(f"Supplier: {supplier_name}"), width=6),
+                    dbc.Col(html.P(f"Quantity: {raw_quantity} {unit_of_measure}"), width=6), # Displaying numeric quantity with unit
+                ]),
+
+                # Price and Profitability
+                html.H5("Price and Profitability", className="mb-2 mt-4"),
+                dbc.Row([
+                    dbc.Col(html.P(f"Cost price: ₹{cost_price}"), width=6),
+                    dbc.Col(html.P(f"Selling price: ₹{selling_price}"), width=6),
+                ]),
+                dbc.Row([
+                    dbc.Col(html.P(f"Profit Margin: {profit_margin}"), width=6),
+                    dbc.Col(html.P(f"Total cost value: {total_cost_value}"), width=6),
+                ]),
+                dbc.Row([
+                    dbc.Col(html.P(f"Expected revenue: {expected_revenue}"), width=6),
+                    dbc.Col(html.P(f"Estimated profit: {estimated_profit}"), width=6),
+                ]),
+
+                # Inventory Details
+                html.H5("Inventory Details", className="mb-2 mt-4"),
+                dbc.Row([
+                    dbc.Col(html.P(f"Unit type: {unit_of_measure}"), width=6),
+                    dbc.Col(html.P(f"Minimum stock: {minimum_stock}"), width=6),
+                ]),
+                dbc.Row([
+                    dbc.Col(html.P(f"Total quantity: {raw_quantity} {unit_of_measure}"), width=6), # Assuming this is current stock again
+                    dbc.Col(html.P(f"Last Restocked: {last_restocked}"), width=6),
+                ]),
+
+                # Supplier Contact
+                html.H5("Supplier Contact", className="mb-2 mt-4"),
+                dbc.Row([
+                    dbc.Col(html.P(f"Phone: {phone}"), width=6),
+                    dbc.Col(html.P(f"Email: {email}"), width=6),
+                ]),
+            ])
+            # --- End of new modal content construction ---
+
+            return not is_open, details_content
+    
+    # If no relevant trigger or active_cell is None, prevent update.
+    return is_open, dash.no_update
+
+
 if __name__ == '__main__':
     app.run(debug=True)
