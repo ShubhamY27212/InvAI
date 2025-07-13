@@ -11,7 +11,16 @@ import io
 import numpy as np
 import sys
 
-
+def get_season(month):
+    if 3 <= month <= 5:
+        return 'Spring'
+    elif 6 <= month <= 8:
+        return 'Summer'
+    elif 9 <= month <= 11:
+        return 'Autumn'
+    else: # 12, 1, 2
+        return 'Winter'
+    
 # --- Data Loading Function ---
 def load_data():
     """
@@ -49,6 +58,9 @@ def load_data():
          # Ensure SaleDate is datetime type and handle errors
         df_sales['SaleDate'] = pd.to_datetime(df_sales['SaleDate'], errors='coerce')
         df_sales.dropna(subset=['SaleDate'], inplace=True)
+        df_sales['Month'] = df_sales['SaleDate'].dt.month
+        df_sales['Season'] = df_sales['Month'].apply(get_season)
+        df_sales['Year'] = df_sales['SaleDate'].dt.year
 
         # Ensure TotalPrice is numeric and handle errors
         df_sales['TotalPrice'] = pd.to_numeric(df_sales['TotalPrice'], errors='coerce')
@@ -2368,6 +2380,7 @@ dash_table.DataTable(
     },
     style_cell={'fontFamily': 'Inter, sans-serif', 'fontSize': '0.9rem'},
     # ADD THIS NEW SECTION for conditional styling
+    
     style_data_conditional=[
         # Lead Time Variability
         {
@@ -2635,67 +2648,122 @@ dbc.Row([
     ),
 ], className="mb-4"),
 
-        # BOTTOM SECTION: More Charts (Row 2)
-        dbc.Row(
-            [
-                dbc.Col(
-                    dbc.Card(
-                        dbc.CardBody(
-                            [
-                                html.H5("Units Sold Over Time", className="card-title"),
-                                # Placeholder for Units Sold Chart
-                                dcc.Graph(
-                                    id='units-sold-over-time-chart',
-                                    figure={
-                                        'data': [
-                                            {'x': dummy_sales_chart_data['Date'], 'y': dummy_sales_chart_data['Units Sold'], 'type': 'line', 'name': 'Units Sold'}
-                                        ],
-                                        'layout': {
-                                            'title': 'Daily Units Sold',
-                                            'xaxis': {'title': 'Date'},
-                                            'yaxis': {'title': 'Units Sold'}
-                                        }
-                                    }
-                                )
-                            ]
-                        ),
-                        className="mb-4 shadow-sm h-100"
-                    ),
-                    md=6
-                ),
-                dbc.Col(
-                    dbc.Card(
-                        dbc.CardBody(
-                            [
-                                html.H5("Sales by Region", className="card-title"),
-                                # Placeholder for Sales by Region Chart (e.g., a pie chart)
-                                dcc.Graph(
-                                    id='sales-by-region-chart',
-                                    figure={
-                                        'data': [
-                                            {'labels': dummy_sales_chart_data['Region'].unique(),
-                                             'values': dummy_sales_chart_data.groupby('Region')['Total Sales'].sum().values,
-                                             'type': 'pie', 'name': 'Sales by Region'}
-                                        ],
-                                        'layout': {
-                                            'title': 'Sales by Region'
-                                        }
-                                    }
-                                )
-                            ]
-                        ),
-                        className="mb-4 shadow-sm h-100"
-                    ),
-                    md=6
-                ),
-            ],
-            className="mb-4"
-        ),
+# --- NEW: Product Seasonal Trends Card/Section ---
+dbc.Card(
+    dbc.CardBody([
+        html.Div([
+            html.H5("Product Seasonal Trends", className="card-title mb-3"),
+            dbc.Row([
+                dbc.Col(dcc.Dropdown(
+                    id='product-seasonal-dropdown',
+                    options=[
+                        # Options will be populated by a callback from your product list
+                        # Example: {'label': 'Winter Coats', 'value': 'Winter Coats'},
+                        #          {'label': 'Summer Dresses', 'value': 'Summer Dresses'}
+                    ],
+                    placeholder="Select Product",
+                    className="mb-3",
+                    value=None
+                ), width=6),
+                dbc.Col(dcc.Dropdown(
+                    id='seasonal-year-dropdown',
+                    options=[
+                        {'label': 'This Year (Projected)', 'value': 'current_projected'},
+                        # Add options for historical years if available in your data
+                        # {'label': '2024', 'value': '2024'},
+                        # {'label': '2023', 'value': '2023'},
+                    ],
+                    value='current_projected', # Default selection
+                    clearable=False,
+                    className="mb-3"
+                ), width=6),
+            ]),
+            html.Div(id='product-seasonal-kpi', className="text-center mb-3"), # KPI display area
+            dcc.Graph(id='product-seasonal-chart', config={'displayModeBar': False})
+        ])
+    ]),
+    className="mb-4" # Add some bottom margin to the card
+),
+# --- END NEW ---
 
-    ],
-    className="content-container p-4",# Use your existing content-container class for padding
-    id="sales-trends-main-content"
+# Add this after the 'Product Seasonal Trends' section, or wherever you want it to appear.
+dbc.Col(lg=12, children=[ # Adjust lg/md/sm as per your layout needs
+    dbc.Card(className="card-container", children=[
+        dbc.CardBody([
+            html.Div(className="d-flex justify-content-between align-items-center", children=[
+                html.H4("Product & Brand Sales Chart", className="card-title"),
+                html.Div([
+                    dcc.Dropdown(
+                        id='product-brand-product-dropdown',
+                        options=[], # Options will be set by callback
+                        value=None, # Default value
+                        placeholder="Select Product",
+                        clearable=False,
+                        style={'width': '200px', 'marginRight': '10px'} # Adjust styling
+                    ),
+                    
+                     # --- NEW: Year Dropdown ---
+                    dcc.Dropdown(
+                        id='product-brand-year-dropdown',
+                        options=[], # Populated by callback
+                        value=None, # Default value, e.g., 2025 or max year
+                        placeholder="Select Year",
+                        clearable=True, # Allow clearing to see all years
+                        style={'width': '120px', 'marginRight': '10px'}
+                    ),
+
+                    # --- NEW: Quarter Dropdown ---
+                    dcc.Dropdown(
+                        id='product-brand-quarter-dropdown',
+                        options=[ # Static options for quarters
+                            {'label': 'Q1', 'value': 1},
+                            {'label': 'Q2', 'value': 2},
+                            {'label': 'Q3', 'value': 3},
+                            {'label': 'Q4', 'value': 4},
+                        ],
+                        value=None,
+                        placeholder="Select Quarter",
+                        clearable=True, # Allow clearing
+                        style={'width': '120px', 'marginRight': '10px'}
+                    ),
+
+                    # --- NEW: Month Dropdown ---
+                    dcc.Dropdown(
+                        id='product-brand-month-dropdown',
+                        options=[ # Static options for months
+                            {'label': 'January', 'value': 1},
+                            {'label': 'February', 'value': 2},
+                            {'label': 'March', 'value': 3},
+                            {'label': 'April', 'value': 4},
+                            {'label': 'May', 'value': 5},
+                            {'label': 'June', 'value': 6},
+                            {'label': 'July', 'value': 7},
+                            {'label': 'August', 'value': 8},
+                            {'label': 'September', 'value': 9},
+                            {'label': 'October', 'value': 10},
+                            {'label': 'November', 'value': 11},
+                            {'label': 'December', 'value': 12},
+                        ],
+                        value=None,
+                        placeholder="Select Month",
+                        clearable=True, # Allow clearing
+                        style={'width': '120px', 'marginRight': '10px'}
+                    ),
+
+                    
+                    # Hidden Div to store the active time aggregation for brand sales
+                    dcc.Store(id='brand-sales-time-agg-state', data='Monthly'), # Default to Monthly
+                ], style={'display': 'flex', 'alignItems': 'center'}),
+            ]),
+            dcc.Graph(id='product-brand-sales-chart', className="mt-3")
+        ])
+    ])
+]),
+ ],
+className="content-container p-4",# Use your existing content-container class for padding
+id="sales-trends-main-content"
 )
+
 
 # --- Manual Carousel Callback ---
 @app.callback(
@@ -2944,14 +3012,14 @@ def update_sales_and_profit_charts(stored_data_json, sales_time_agg, profit_time
 )
 def update_kpis(stored_data_json, sales_time_agg, profit_time_agg):
     if stored_data_json is None or 'sales' not in stored_data_json:
-        return "$0", "N/A", "$0", "N/A"
+        return "₹0", "N/A", "₹0", "N/A"
 
     df_sales = pd.read_json(io.StringIO(stored_data_json['sales']), orient='split')
     df_sales['SaleDate'] = pd.to_datetime(df_sales['SaleDate'], errors='coerce')
     df_sales.dropna(subset=['SaleDate'], inplace=True)
 
     if df_sales.empty:
-        return "$0", "N/A", "$0", "N/A"
+        return "₹0", "N/A", "₹0", "N/A"
 
     # --- Sales KPI Calculation ---
     sales_agg_current_period_df = aggregate_data(df_sales, sales_time_agg, 'SaleDate', 'TotalPrice')
@@ -2960,7 +3028,7 @@ def update_kpis(stored_data_json, sales_time_agg, profit_time_agg):
     sales_change = 0
     if previous_sales_total != 0:
         sales_change = ((current_sales_total - previous_sales_total) / previous_sales_total) * 100
-    formatted_sales_total = f"${current_sales_total:,.0f}"
+    formatted_sales_total = f"₹{current_sales_total:,.0f}"
     formatted_sales_change = f"This Period {sales_change:+.1f}%"
 
     # --- Profit KPI Calculation ---
@@ -2970,11 +3038,360 @@ def update_kpis(stored_data_json, sales_time_agg, profit_time_agg):
     profit_change = 0
     if previous_profit_total != 0:
         profit_change = ((current_profit_total - previous_profit_total) / previous_profit_total) * 100
-    formatted_profit_total = f"${current_profit_total:,.0f}"
+    formatted_profit_total = f"₹{current_profit_total:,.0f}"
     formatted_profit_change = f"This Period {profit_change:+.1f}%"
 
     return formatted_sales_total, formatted_sales_change, formatted_profit_total, formatted_profit_change
 
 
+# Callback to populate the Product Seasonal Dropdown
+@app.callback(
+    Output('product-seasonal-dropdown', 'options'),
+    Output('product-seasonal-dropdown', 'value'),
+    Input('stored-data', 'data')
+)
+def set_product_seasonal_options(stored_data_json):
+    if stored_data_json is None or 'sales' not in stored_data_json:
+        return [], None
+
+    df_sales = pd.read_json(io.StringIO(stored_data_json['sales']), orient='split')
+
+    if 'ProductCategory' not in df_sales.columns:
+        print("Warning: 'ProductCategory' column not found in data for product seasonal dropdown.")
+        return [], None
+
+    # Get unique product categories and prepare options
+    product_categories = sorted(df_sales['ProductCategory'].unique().tolist())
+    options = [{'label': category, 'value': category} for category in product_categories]
+
+    # --- Set Default Product ---
+    # You can choose a default based on your preference:
+    # Option A: The first product in the sorted list (alphabetical)
+    default_product = product_categories[0] if product_categories else None
+
+    # Option B: A specific product if it exists (e.g., 'Apparel' or 'Winter Coats')
+    # if 'Apparel' in product_categories:
+    #     default_product = 'Apparel'
+    # elif product_categories:
+    #     default_product = product_categories[0]
+    # else:
+    #     default_product = None
+
+    return options, default_product
+
+
+
+# Callback to update Product Seasonal Trends KPI and Chart
+@app.callback(
+    Output('product-seasonal-kpi', 'children'),
+    Output('product-seasonal-chart', 'figure'),
+    Input('product-seasonal-dropdown', 'value'),
+    Input('seasonal-year-dropdown', 'value'),
+    Input('stored-data', 'data')
+)
+def update_product_seasonal_trends(selected_product, selected_year, stored_data_json):
+    if stored_data_json is None or 'sales' not in stored_data_json:
+        return "", {}
+
+    df_sales = pd.read_json(io.StringIO(stored_data_json['sales']), orient='split')
+    df_sales['SaleDate'] = pd.to_datetime(df_sales['SaleDate'], errors='coerce')
+    df_sales.dropna(subset=['SaleDate'], inplace=True)
+
+    # Re-calculate season/year if not already in stored_data (better to do this in load_data)
+    df_sales['Month'] = df_sales['SaleDate'].dt.month
+    df_sales['Season'] = df_sales['Month'].apply(get_season)
+    df_sales['Year'] = df_sales['SaleDate'].dt.year
+
+    if df_sales.empty or selected_product is None:
+        return "$0 (N/A)", {} # Adjusted for INR later
+
+    # Filter by selected product
+    # Adjust 'ProductCategory' to 'ProductName' if that's your column
+    filtered_df = df_sales[df_sales['ProductCategory'] == selected_product].copy()
+
+    if filtered_df.empty:
+        return f"₹0 ({selected_product})", {} # Updated for INR
+
+    # Filter by selected year if applicable. 'current_projected' implies latest year
+    if selected_year == 'current_projected':
+        current_year = filtered_df['Year'].max() # Get the latest year in data
+        period_df = filtered_df[filtered_df['Year'] == current_year]
+    else: # If you add other years (e.g., '2023', '2024')
+        period_df = filtered_df[filtered_df['Year'] == int(selected_year)]
+
+    if period_df.empty:
+        return f"₹0 ({selected_product})", {} # Updated for INR
+
+    # Aggregate by season
+    seasonal_order = ['Spring', 'Summer', 'Autumn', 'Winter']
+    seasonal_sales = period_df.groupby('Season')['TotalPrice'].sum().reindex(seasonal_order).fillna(0).reset_index()
+    seasonal_sales.columns = ['Season', 'Sales']
+
+    # KPI Calculation for current period
+    current_total_sales = seasonal_sales['Sales'].sum()
+
+    # To calculate percentage change, you need previous year's total sales for this product
+    previous_year = current_year - 1
+    previous_year_df = filtered_df[filtered_df['Year'] == previous_year]
+    previous_total_sales = previous_year_df['TotalPrice'].sum() if not previous_year_df.empty else 0
+
+    sales_change_percent = 0
+    if previous_total_sales != 0:
+        sales_change_percent = ((current_total_sales - previous_total_sales) / previous_total_sales) * 100
+
+    # Format KPI
+    formatted_kpi = html.Div([
+        html.H3(f"₹{current_total_sales:,.0f}", className="text-primary"), # Adjusted for INR
+        html.P(f"{selected_product} ({current_year} Sales) {sales_change_percent:+.1f}%",
+               className="text-muted")
+    ], className="text-center")
+
+
+    # Create the chart
+    colors = ['#28a745' if s >= 0 else '#dc3545' for s in seasonal_sales['Sales']] # Basic color logic
+    # More advanced logic for increase/decrease if you have season-over-season change
+    # For now, let's just make them all green as per the image for positive sales
+    plot_colors = ['#28a745'] * len(seasonal_sales) # All green, match image style
+
+    fig = go.Figure(data=[
+        go.Bar(
+            x=seasonal_sales['Season'],
+            y=seasonal_sales['Sales'],
+            marker_color=plot_colors, # Apply colors
+            name='Sales'
+        )
+    ])
+
+    fig.update_layout(
+        title={
+            'text': f"Product Seasonal Trends ({selected_product})", # Dynamic title
+            'font': {'size': 18, 'color': '#333'}
+        },
+        xaxis=dict(
+            title='Season',
+            categoryorder='array', # Ensure seasons are in order
+            categoryarray=seasonal_order,
+            showgrid=False, zeroline=False
+        ),
+        yaxis=dict(
+            title='Sales Amount (₹)', # Adjusted for INR
+            showgrid=False, zeroline=False,
+            rangemode='tozero' # Ensure bars start from zero
+        ),
+        plot_bgcolor='#f8f9fa',
+        paper_bgcolor='#fff',
+        margin={'l': 40, 'r': 20, 't': 60, 'b': 30},
+        height=350, # Adjust height as needed
+        showlegend=False
+    )
+
+    return formatted_kpi, fig
+
+# Callback to populate 'product-brand-product-dropdown' #
+
+@app.callback(
+    Output('product-brand-product-dropdown', 'options'),
+    Output('product-brand-product-dropdown', 'value'),
+    Input('stored-data', 'data')
+)
+def set_product_brand_product_options(stored_data_json):
+    if stored_data_json is None or 'sales' not in stored_data_json:
+        return [], None
+
+    df_sales = pd.read_json(io.StringIO(stored_data_json['sales']), orient='split')
+
+    if 'ProductCategory' not in df_sales.columns:
+        return [], None
+
+    product_categories = sorted(df_sales['ProductCategory'].unique().tolist())
+    options = [{'label': category, 'value': category} for category in product_categories]
+    
+    # Set a default value, e.g., the first product or 'Apparel' if you prefer
+    default_value = product_categories[0] if product_categories else None
+
+    return options, default_value
+
+#  Callback to update brand-sales-time-agg-state (for Monthly/Quarterly/Yearly buttons) #
+from dash.dependencies import State # Make sure you have this import
+
+@app.callback(
+    Output('brand-sales-time-agg-state', 'data'),
+    [Input('brand-sales-monthly-btn', 'n_clicks'),
+     Input('brand-sales-quarterly-btn', 'n_clicks'),
+     Input('brand-sales-yearly-btn', 'n_clicks')]
+)
+def set_brand_sales_time_agg(monthly_clicks, quarterly_clicks, yearly_clicks):
+    ctx = dash.callback_context
+
+    if not ctx.triggered:
+        return 'Monthly' # Default value if no button has been clicked yet
+
+    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    if button_id == 'brand-sales-monthly-btn':
+        return 'Monthly'
+    elif button_id == 'brand-sales-quarterly-btn':
+        return 'Quarterly'
+    elif button_id == 'brand-sales-yearly-btn':
+        return 'Yearly'
+    return 'Monthly' # Fallback
+
+
+# Callback to generate 'product-brand-sales-chart'
+# Ensure you have plotly.graph_objects as go
+import plotly.graph_objects as go
+import plotly.express as px # Often useful for bar charts
+
+
+@app.callback(
+    Output('product-brand-sales-chart', 'figure'),
+    [Input('product-brand-product-dropdown', 'value'),
+     Input('product-brand-year-dropdown', 'value'),
+     Input('product-brand-quarter-dropdown', 'value'),
+     Input('product-brand-month-dropdown', 'value')],
+    [State('stored-data', 'data')]
+)
+def update_product_brand_sales_chart(
+    selected_product_category,
+    selected_year,
+    selected_quarter,
+    selected_month,
+    stored_data_json
+):
+    # Initialize an empty figure to return in case of no data
+    empty_figure = go.Figure().update_layout(
+        title="No data to display. Please adjust filters.",
+        xaxis={'visible': False},
+        yaxis={'visible': False}
+    )
+
+    if stored_data_json is None or 'sales' not in stored_data_json:
+        return empty_figure.update_layout(title="No sales data loaded.")
+
+    df_sales = pd.read_json(io.StringIO(stored_data_json['sales']), orient='split')
+
+    if 'SaleDate' not in df_sales.columns:
+        return empty_figure.update_layout(title="Error: 'SaleDate' column missing in your data.")
+
+    df_sales['SaleDate'] = pd.to_datetime(df_sales['SaleDate'], errors='coerce')
+    df_sales.dropna(subset=['SaleDate'], inplace=True)
+
+    if df_sales.empty:
+        return empty_figure.update_layout(title="Loaded sales data is empty after date processing.")
+
+    if selected_product_category is None:
+        return empty_figure.update_layout(title="Please select a Product Category to view sales data.")
+
+    if 'Brand' not in df_sales.columns:
+        return empty_figure.update_layout(title="Error: 'Brand' column missing in your sales data.")
+
+    # Apply product category filter first
+    filtered_df = df_sales[df_sales['ProductCategory'] == selected_product_category].copy()
+
+    # Apply time filters
+    if selected_year is not None:
+        filtered_df = filtered_df[filtered_df['SaleDate'].dt.year == selected_year]
+    if selected_quarter is not None:
+        filtered_df = filtered_df[filtered_df['SaleDate'].dt.quarter == selected_quarter]
+    if selected_month is not None:
+        filtered_df = filtered_df[filtered_df['SaleDate'].dt.month == selected_month]
+
+    # --- Crucial: If filtered_df is empty after all filters, return early ---
+    if filtered_df.empty:
+        return empty_figure.update_layout(
+            title=f"No data for '{selected_product_category}' with current time filters."
+        )
+
+    # --- Determine the 'Period' column based on the most specific filter ---
+    facet_col_name = 'Period' # Default facet column name for consistency
+    aggregation_level_title = ""
+
+    if selected_month is not None:
+        filtered_df['Period'] = filtered_df['SaleDate'].dt.to_period('M').astype(str)
+        aggregation_level_title = "Monthly"
+    elif selected_quarter is not None:
+        filtered_df['Period'] = filtered_df['SaleDate'].dt.to_period('Q').astype(str)
+        aggregation_level_title = "Quarterly"
+    elif selected_year is not None:
+        filtered_df['Period'] = filtered_df['SaleDate'].dt.to_period('Y').astype(str)
+        aggregation_level_title = "Yearly"
+    else:
+        # Default: if no specific time filter is selected, aggregate yearly
+        filtered_df['Period'] = filtered_df['SaleDate'].dt.to_period('Y').astype(str)
+        aggregation_level_title = "Overall Yearly"
+
+    # --- THIS IS THE MISSING/CRITICAL PART ---
+    # Aggregate sales by Brand and Period
+    aggregated_df = filtered_df.groupby(['Brand', 'Period'])['TotalPrice'].sum().reset_index()
+
+    # If aggregation itself results in an empty DataFrame (unlikely but possible if all data was NaN after grouping)
+    if aggregated_df.empty:
+        return empty_figure.update_layout(
+            title=f"No aggregated data for {selected_product_category} with current filters after grouping."
+        )
+
+    # Sort brands by TotalPrice within each Period for better visualization
+    aggregated_df = aggregated_df.sort_values(by=['Period', 'TotalPrice'], ascending=[True, True])
+
+    # Create the horizontal bar chart
+    fig = px.bar(
+        aggregated_df,
+        y='Brand',
+        x='TotalPrice',
+        color='Brand',
+        facet_col=facet_col_name,
+        facet_col_wrap=1,
+        title=f"Sales by Brand for {selected_product_category} ({aggregation_level_title} Aggregation)",
+        labels={'TotalPrice': 'Total Sales (₹)', 'Brand': 'Brand'},
+        orientation='h',
+        height=800,
+        # Add text_auto for displaying values on bars. 'auto' tries to format nicely.
+        # You can also specify a format string like '$,.0f' for currency, or '.2s' for SI units.
+        text_auto=True,
+        # 'text' argument can be used if you need custom formatting beyond text_auto
+        # For example, to add '₹' symbol: text=aggregated_df['TotalPrice'].apply(lambda x: f"₹{x:,.0f}")
+    )
+
+    # --- OPTIONAL: Adjust text properties for better visibility ---
+    fig.update_traces(textposition='outside') # Positions text outside the bars
+    fig.update_layout(uniformtext_minsize=8, uniformtext_mode='hide') # Helps with crowded bars
+
+    # Update layout for better readability
+    fig.update_layout(
+        margin={"t": 60, "b": 0, "l": 0, "r": 0},
+        xaxis_title='Total Sales (₹)',
+        yaxis_title=None,
+        hovermode="y unified"
+    )
+    fig.update_yaxes(matches=None, showticklabels=True, automargin=True)
+    fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
+
+    return fig
+
+# New callback for year dropdown
+@app.callback(
+    Output('product-brand-year-dropdown', 'options'),
+    Output('product-brand-year-dropdown', 'value'), # Optional: Set a default year
+    Input('stored-data', 'data')
+)
+def set_product_brand_year_options(stored_data_json):
+    if stored_data_json is None or 'sales' not in stored_data_json:
+        return [], None
+
+    df_sales = pd.read_json(io.StringIO(stored_data_json['sales']), orient='split')
+
+    if 'Year' not in df_sales.columns:
+        print("Warning: 'Year' column not found in data for brand sales year dropdown.")
+        return [], None
+
+    # Get unique years, sort them, and prepare options
+    years = sorted(df_sales['Year'].unique().tolist(), reverse=True)
+    options = [{'label': str(year), 'value': year} for year in years]
+
+    # Set default to the latest year, or None if you prefer no default
+    default_year = max(years) if years else None
+
+    return options, default_year
+    
 if __name__ == '__main__':
     app.run(debug=True)
