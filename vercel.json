@@ -3,9 +3,9 @@
   "builds": [
     {
       "src": "app.py",
-      "use": "@vercel/python",
+      "use": "@ardnt/vercel-python-slim",
       "config": {
-        "maxLambdaSize": "50mb" 
+        "runtime": "python3.9" // You can specify your desired Python version here
       }
     }
   ],
