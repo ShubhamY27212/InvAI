@@ -5,7 +5,7 @@
       "src": "app.py",
       "use": "@ardnt/vercel-python-slim",
       "config": {
-        "runtime": "python3.9" // You can specify your desired Python version here
+        "runtime": "python3.9" 
       }
     }
   ],
