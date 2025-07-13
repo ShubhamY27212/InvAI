@@ -1064,3 +1064,13 @@ html, body {
     margin: 0 auto; /* Centers the graph if it doesn't fill the parent */
 }
 
+#total-sales-over-time-chart,
+#total-profit-over-time-chart {
+    height: 400px !important; /* Adjust as needed. !important can help override other styles */
+}
+
+/* Sometimes, the internal Plotly div also needs height adjustment */
+#total-sales-over-time-chart .js-plotly-plot,
+#total-profit-over-time-chart .js-plotly-plot {
+    height: 100% !important;
+}
