@@ -95,6 +95,8 @@ app = dash.Dash(__name__, external_stylesheets=[
                 suppress_callback_exceptions=True 
 )
 
+server = app.server
+
 # Initial data load
 app_data = load_data()
 
