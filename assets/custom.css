@@ -119,9 +119,6 @@ html, body {
 }
 
 /* Main Content Area */
-/* IMPORTANT: Based on previous app.py, this should be .content-container, not .content.
-   I've kept it as .content for compatibility with your provided CSS, but if you used
-   .content-container in app.py, change this class name too. */
 .content-container {
     padding: 1.5rem;
     flex-grow: 1;
@@ -135,10 +132,10 @@ html, body {
     margin-left: 250px; /* Pushes the entire content area right, clearing the fixed sidebar */
     flex-grow: 1; /* Makes it take up all remaining horizontal space */
     overflow-y: auto; /* Adds vertical scrollbar if content overflows */
-    padding: 1.5rem; /* This replaces Bootstrap's p-4 for consistent inner padding */
+    padding: 1.5rem; 
     background-color: #f8f9fa; /* Background for the main content area */
     min-height: 100vh; /* Ensures it takes full viewport height */
-    box-sizing: border-box; /* Important: Ensures padding doesn't add to the total width/height */
+    box-sizing: border-box; 
 }
 
 
@@ -178,11 +175,8 @@ html, body {
     position: relative;
     overflow: hidden;
     background-color: #ffffff !important; /* Explicitly set to white */
-    /* If you want to use a subtle background image that is visible on white, you can re-add it here */
-    /* background-image: url("/assets/welcome_banner_bg.png"); */
 }
 
-/* Removed the dark overlay to achieve white background behind text */
 .welcome-banner::before {
     content: none;
 }
@@ -440,8 +434,6 @@ html, body {
     color: #333;
     margin-bottom: 0.2rem;
 }
-/* Removed custom bar chart styling here as Plotly graph is used */
-
 
 /* --- Expiry Management Page Specific Styles --- */
 
@@ -899,7 +891,6 @@ html, body {
 }
 
 /* Conditional styling for 'REASON FOR REORDER' column based on cell content */
-/* IMPORTANT: These selectors rely on exact string matches from your get_reorder_data function */
 
 #reorder-recommendations-table .dash-cell-value[data-column-id="REASON FOR REORDER"][data-value="Critically Low Stock (AI/ML Logic)"] {
     color: #e74c3c; /* Red */
@@ -942,7 +933,7 @@ html, body {
     border-collapse: collapse; /* Add this here for good measure, though it primarily affects <table> */
 }
 
-/* NEW/MODIFIED: Target the actual <table> element inside the DataTable container */
+
 #reorder-recommendations-table table {
     width: 100%; /* Ensure the table fills its container */
     border-collapse: collapse; /* CRITICAL: This makes cell borders merge and helps border-radius on table cells */
@@ -1013,7 +1004,7 @@ html, body {
 
 
 
-/* --- Conditional Status Colors (Used by data-attribute selectors) --- */
+/* --- Conditional Status Colors  --- */
 
 /* For Lead Time Variability in Supplier Summary Table */
 #supplier-summary-data-table .dash-cell-value[data-column-id="Lead Time Variability"][data-value="Very Low"],
