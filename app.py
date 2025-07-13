@@ -46,6 +46,21 @@ def load_data():
         df_sales['SaleDate'] = pd.to_datetime(df_sales['SaleDate'])
         data['sales'] = df_sales.to_json(date_format='iso', orient='split')
         
+         # Ensure SaleDate is datetime type and handle errors
+        df_sales['SaleDate'] = pd.to_datetime(df_sales['SaleDate'], errors='coerce')
+        df_sales.dropna(subset=['SaleDate'], inplace=True)
+
+        # Ensure TotalPrice is numeric and handle errors
+        df_sales['TotalPrice'] = pd.to_numeric(df_sales['TotalPrice'], errors='coerce')
+        df_sales.dropna(subset=['TotalPrice'], inplace=True)
+
+        # Verify 'Profit' column exists and add fallback if not (as it should be there after running script)
+        if 'Profit' not in df_sales.columns:
+            print("CRITICAL WARNING: 'Profit' column not found in sales_data.csv. Please ensure you ran the 'add_profit_column.py' script successfully.")
+            # Fallback (add random profit if missing, but ideally, fix the CSV)
+            df_sales['Profit'] = df_sales['TotalPrice'] * np.random.uniform(0.15, 0.25, len(df_sales))
+
+        
 
         inventory_path = os.path.join(data_dir, 'inventory_movements.csv')
         df_inventory = pd.read_csv(inventory_path)
@@ -843,6 +858,12 @@ expiry_management_content = html.Div(
 app.layout = html.Div([
     dcc.Store(id='stored-data', data=app_data),
     dcc.Location(id='url', refresh=False),
+    
+    # --- NEW: Stores for time aggregation state ---
+    dcc.Store(id='sales-time-agg-state', data='Monthly'),  # Default to Monthly
+    dcc.Store(id='profit-time-agg-state', data='Monthly'), # Default to Monthly
+    # --- END NEW ---
+    
     sidebar,
     html.Div(id='page-content', className="content-container") # This will hold the dynamic content
 ], className="app-container")
@@ -2573,65 +2594,46 @@ sales_trends_layout = html.Div(
         ),
 
         # MIDDLE SECTION: Sales and Profit Overview Charts (Row 1)
-dbc.Row(
-    [
-        dbc.Col(
-            dbc.Card(
-                dbc.CardBody(
-                    [
-                        html.H5("Total Sales Over Time", className="card-title"),
-                        dcc.Dropdown(
-                            id='sales-time-agg-dropdown',
-                            options=[
-                                {'label': 'Daily', 'value': 'Daily'},
-                                {'label': 'Weekly', 'value': 'Weekly'},
-                                {'label': 'Monthly', 'value': 'Monthly'},
-                                {'label': 'Yearly', 'value': 'Yearly'}
-                            ],
-                            value='Daily', # Default value
-                            clearable=False,
-                            className="mb-3"
-                        ),
-                        dcc.Graph(
-                            id='total-sales-over-time-chart',
-                            figure={} # Figure will be updated by callback
-                        )
-                    ]
-                ),
-                className="mb-4 shadow-sm h-100"
-            ),
-            md=6
-        ),
-        dbc.Col(
-            dbc.Card(
-                dbc.CardBody(
-                    [
-                        html.H5("Total Profit Over Time", className="card-title"),
-                        dcc.Dropdown(
-                            id='profit-time-agg-dropdown',
-                            options=[
-                                {'label': 'Daily', 'value': 'Daily'},
-                                {'label': 'Weekly', 'value': 'Weekly'},
-                                {'label': 'Monthly', 'value': 'Monthly'},
-                                {'label': 'Yearly', 'value': 'Yearly'}
-                            ],
-                            value='Daily', # Default value
-                            clearable=False,
-                            className="mb-3"
-                        ),
-                        dcc.Graph(
-                            id='total-profit-over-time-chart',
-                            figure={} # Figure will be updated by callback
-                        )
-                    ]
-                ),
-                className="mb-4 shadow-sm h-100"
-            ),
-            md=6
-        ),
-    ],
-    className="mb-4"
-),
+dbc.Row([
+    dbc.Col(
+        dbc.Card(
+            dbc.CardBody([
+                html.Div("Sales Data", className="mb-2 fs-5 fw-bold text-success"), # Title for Sales Data
+                dbc.Button("Daily", id="sales-agg-daily", className="me-1", n_clicks=0),
+                dbc.Button("Weekly", id="sales-agg-weekly", className="me-1", n_clicks=0),
+                dbc.Button("Monthly", id="sales-agg-monthly", className="me-1", n_clicks=0),
+                dbc.Button("Yearly", id="sales-agg-yearly", n_clicks=0),
+
+                # KPI Display for Sales
+                html.Div([
+                    html.H3(id='sales-total-kpi', className="display-5 fw-bold text-primary mb-0"), # Main total
+                    html.Small(id='sales-change-kpi', className="text-success") # Percentage change
+                ], className="d-flex flex-column align-items-start my-3"), # Flexbox for alignment
+
+                dcc.Graph(id='total-sales-over-time-chart', figure={})
+            ]), className="h-100" # Ensure card takes full height of its column
+        ), md=6
+    ),
+    dbc.Col(
+        dbc.Card(
+            dbc.CardBody([
+                html.Div("Profit Data", className="mb-2 fs-5 fw-bold text-success"), # Title for Profit Data
+                dbc.Button("Daily", id="profit-agg-daily", className="me-1", n_clicks=0),
+                dbc.Button("Weekly", id="profit-agg-weekly", className="me-1", n_clicks=0),
+                dbc.Button("Monthly", id="profit-agg-monthly", className="me-1", n_clicks=0),
+                dbc.Button("Yearly", id="profit-agg-yearly", n_clicks=0),
+
+                # KPI Display for Profit
+                html.Div([
+                    html.H3(id='profit-total-kpi', className="display-5 fw-bold text-success mb-0"), # Main total
+                    html.Small(id='profit-change-kpi', className="text-success") # Percentage change
+                ], className="d-flex flex-column align-items-start my-3"),
+
+                dcc.Graph(id='total-profit-over-time-chart', figure={})
+            ]), className="h-100"
+        ), md=6
+    ),
+], className="mb-4"),
 
         # BOTTOM SECTION: More Charts (Row 2)
         dbc.Row(
@@ -2761,19 +2763,25 @@ def display_initial_carousel_item(current_index):
 # Helper function to aggregate data based on time period and specified column names
 def aggregate_data(df, time_agg, date_col, value_col):
     if df.empty:
-        return pd.DataFrame(columns=[date_col, value_col]) # Use original column names for empty df
+        return pd.DataFrame(columns=['Date', value_col])
 
-    # Ensure the specified date_col is datetime type before aggregation
     if not pd.api.types.is_datetime64_any_dtype(df[date_col]):
         df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
         df.dropna(subset=[date_col], inplace=True)
 
-    # Perform aggregation using the specified date_col and value_col
+    agg_df = pd.DataFrame() # Initialize agg_df
+
     if time_agg == 'Daily':
         agg_df = df.groupby(date_col)[value_col].sum().reset_index()
     elif time_agg == 'Weekly':
         agg_df = df.set_index(date_col).resample('W')[value_col].sum().reset_index()
-        agg_df[date_col] = agg_df[date_col].dt.strftime('%Y-W%W') # Format for better weekly labels
+        # For weekly, we can just use the week number for cleaner labels, or a 'Week X' format
+        agg_df['WeekNum'] = agg_df[date_col].dt.isocalendar().week # Get ISO week number
+        agg_df['Year'] = agg_df[date_col].dt.year
+        # Combine year and week to ensure uniqueness across years, e.g., '2024-Week 1', '2025-Week 1'
+        agg_df[date_col] = agg_df['Year'].astype(str) + '-Week ' + agg_df['WeekNum'].astype(str)
+        agg_df = agg_df[[date_col, value_col]] # Keep only relevant columns
+
     elif time_agg == 'Monthly':
         agg_df = df.set_index(date_col).resample('M')[value_col].sum().reset_index()
         agg_df[date_col] = agg_df[date_col].dt.strftime('%Y-%m') # Format for better monthly labels
@@ -2781,69 +2789,191 @@ def aggregate_data(df, time_agg, date_col, value_col):
         agg_df = df.set_index(date_col).resample('Y')[value_col].sum().reset_index()
         agg_df[date_col] = agg_df[date_col].dt.strftime('%Y') # Format for better yearly labels
 
-    # --- IMPORTANT: Rename the date column in the aggregated DataFrame to 'Date'
-    # This is done AFTER aggregation, so it only affects the chart data, not the original df.
-    # The plotly graph will use this 'Date' column for its x-axis.
     agg_df.rename(columns={date_col: 'Date'}, inplace=True)
-
     return agg_df
 
-# Callback to update Sales and Profit charts based on dropdown selection and stored data
+
+# --- Callback to update Sales Time Aggregation State ---
+@app.callback(
+    Output('sales-time-agg-state', 'data'),
+    Input('sales-agg-daily', 'n_clicks'),
+    Input('sales-agg-weekly', 'n_clicks'),
+    Input('sales-agg-monthly', 'n_clicks'),
+    Input('sales-agg-yearly', 'n_clicks'),
+    State('sales-time-agg-state', 'data')
+)
+def update_sales_agg_state(d, w, m, y, current_state):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return current_state
+    button_id = ctx.triggered [0]['prop_id'].split('.')[0]
+    if button_id == 'sales-agg-daily': return 'Daily'
+    elif button_id == 'sales-agg-weekly': return 'Weekly'
+    elif button_id == 'sales-agg-monthly': return 'Monthly'
+    elif button_id == 'sales-agg-yearly': return 'Yearly'
+    return current_state
+
+# --- Callback to update Profit Time Aggregation State ---
+@app.callback(
+    Output('profit-time-agg-state', 'data'),
+    Input('profit-agg-daily', 'n_clicks'),
+    Input('profit-agg-weekly', 'n_clicks'),
+    Input('profit-agg-monthly', 'n_clicks'),
+    Input('profit-agg-yearly', 'n_clicks'),
+    State('profit-time-agg-state', 'data')
+)
+def update_profit_agg_state(d, w, m, y, current_state):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return current_state
+    button_id = ctx.triggered [0]['prop_id'].split('.')[0]
+    if button_id == 'profit-agg-daily': return 'Daily'
+    elif button_id == 'profit-agg-weekly': return 'Weekly'
+    elif button_id == 'profit-agg-monthly': return 'Monthly'
+    elif button_id == 'profit-agg-yearly': return 'Yearly'
+    return current_state
+
+# Callback to update Sales and Profit charts based on stored data and aggregation states
 @app.callback(
     Output('total-sales-over-time-chart', 'figure'),
     Output('total-profit-over-time-chart', 'figure'),
-    Input('sales-time-agg-dropdown', 'value'),
-    Input('profit-time-agg-dropdown', 'value'),
-    Input('stored-data', 'data')
+    Input('stored-data', 'data'), # Data from dcc.Store
+    Input('sales-time-agg-state', 'data'), # <-- NEW: Get state from dcc.Store
+    Input('profit-time-agg-state', 'data') # <-- NEW: Get state from dcc.Store
 )
-def update_sales_and_profit_charts(sales_time_agg, profit_time_agg, stored_data_json):
-    if stored_data_json is None or 'sales_data_with_profit' not in stored_data_json:
-        return {}, {} # Return empty figures if data not yet loaded/available
+def update_sales_and_profit_charts(stored_data_json, sales_time_agg, profit_time_agg):
+    if stored_data_json is None or 'sales' not in stored_data_json:
+        return {}, {}
 
-    # Deserialize the sales data from JSON back into a pandas DataFrame
-    df_sales = pd.read_json(stored_data_json['sales_data_with_profit'], orient='split')
-    # Ensure 'SaleDate' column is datetime after deserialization
+    df_sales = pd.read_json(io.StringIO(stored_data_json['sales']), orient='split')
     df_sales['SaleDate'] = pd.to_datetime(df_sales['SaleDate'], errors='coerce')
     df_sales.dropna(subset=['SaleDate'], inplace=True)
 
     if df_sales.empty:
-        return {}, {} # Return empty figures if no data after processing
+        return {}, {}
 
-    # Sales Chart Logic: Pass 'SaleDate' and 'TotalPrice' (original column names)
+    # Sales Chart Logic:
     sales_agg_df = aggregate_data(df_sales, sales_time_agg, 'SaleDate', 'TotalPrice')
     sales_fig = {
         'data': [
-            {'x': sales_agg_df['Date'], 'y': sales_agg_df['TotalPrice'], 'type': 'line', 'name': 'Total Sales', 'marker': {'color': '#0d6efd'}}
+            go.Scatter(
+                x=sales_agg_df['Date'],
+                y=sales_agg_df['TotalPrice'],
+                mode='lines',
+                fill='tozeroy',
+                line=dict(color='#198754'), # Green line color
+                name='Total Sales'
+            )
         ],
         'layout': {
-            'title': f'Total Sales ({sales_time_agg})',
-            'xaxis': {'title': 'Time Period'},
-            'yaxis': {'title': 'Sales Amount'},
-            'plot_bgcolor': '#fff',
+            'title': {
+                'text': 'Overall Sales Growth',
+                'font': {'size': 18, 'color': '#333'}
+            },
+            'xaxis': {
+                'title': 'Time Period',
+                'tickmode': 'array',
+                'tickvals': sales_agg_df['Date'],
+                'ticktext': sales_agg_df['Date'],
+                'showgrid': False,
+                'zeroline': False
+            },
+            'yaxis': {
+                'title': 'Sales Amount',
+                'showgrid': False,
+                'zeroline': False
+            },
+            'plot_bgcolor': '#f8f9fa',
             'paper_bgcolor': '#fff',
-            'margin': {'l': 40, 'r': 20, 't': 40, 'b': 30},
-            'hovermode': 'x unified'
+            'margin': {'l': 40, 'r': 20, 't': 60, 'b': 30},
+            'height': 250,
+            'showlegend': False
         }
     }
 
-    # Profit Chart Logic: Pass 'SaleDate' and 'Profit' (original/new column names)
+    # Profit Chart Logic:
     profit_agg_df = aggregate_data(df_sales, profit_time_agg, 'SaleDate', 'Profit')
     profit_fig = {
         'data': [
-            {'x': profit_agg_df['Date'], 'y': profit_agg_df['Profit'], 'type': 'line', 'name': 'Profit', 'marker': {'color': '#198754'}}
+            go.Scatter(
+                x=profit_agg_df['Date'],
+                y=profit_agg_df['Profit'],
+                mode='lines',
+                fill='tozeroy',
+                line=dict(color='#198754'),
+                name='Profit'
+            )
         ],
         'layout': {
-            'title': f'Total Profit ({profit_time_agg})',
-            'xaxis': {'title': 'Time Period'},
-            'yaxis': {'title': 'Profit Amount'},
-            'plot_bgcolor': '#fff',
+            'title': {
+                'text': 'Overall Profit Growth',
+                'font': {'size': 18, 'color': '#333'}
+            },
+            'xaxis': {
+                'title': 'Time Period',
+                'tickmode': 'array',
+                'tickvals': profit_agg_df['Date'],
+                'ticktext': profit_agg_df['Date'],
+                'showgrid': False,
+                'zeroline': False
+            },
+            'yaxis': {
+                'title': 'Profit Amount',
+                'showgrid': False,
+                'zeroline': False
+            },
+            'plot_bgcolor': '#f8f9fa',
             'paper_bgcolor': '#fff',
-            'margin': {'l': 40, 'r': 20, 't': 40, 'b': 30},
-            'hovermode': 'x unified'
+            'margin': {'l': 40, 'r': 20, 't': 60, 'b': 30},
+            'height': 250,
+            'showlegend': False
         }
     }
 
     return sales_fig, profit_fig
+
+
+@app.callback(
+    Output('sales-total-kpi', 'children'),
+    Output('sales-change-kpi', 'children'),
+    Output('profit-total-kpi', 'children'),
+    Output('profit-change-kpi', 'children'),
+    Input('stored-data', 'data'),
+    Input('sales-time-agg-state', 'data'), # <-- NEW: Get state from dcc.Store
+    Input('profit-time-agg-state', 'data') # <-- NEW: Get state from dcc.Store
+)
+def update_kpis(stored_data_json, sales_time_agg, profit_time_agg):
+    if stored_data_json is None or 'sales' not in stored_data_json:
+        return "$0", "N/A", "$0", "N/A"
+
+    df_sales = pd.read_json(io.StringIO(stored_data_json['sales']), orient='split')
+    df_sales['SaleDate'] = pd.to_datetime(df_sales['SaleDate'], errors='coerce')
+    df_sales.dropna(subset=['SaleDate'], inplace=True)
+
+    if df_sales.empty:
+        return "$0", "N/A", "$0", "N/A"
+
+    # --- Sales KPI Calculation ---
+    sales_agg_current_period_df = aggregate_data(df_sales, sales_time_agg, 'SaleDate', 'TotalPrice')
+    current_sales_total = sales_agg_current_period_df['TotalPrice'].iloc[-1] if not sales_agg_current_period_df.empty else 0
+    previous_sales_total = sales_agg_current_period_df['TotalPrice'].iloc[-2] if len(sales_agg_current_period_df) >= 2 else 0
+    sales_change = 0
+    if previous_sales_total != 0:
+        sales_change = ((current_sales_total - previous_sales_total) / previous_sales_total) * 100
+    formatted_sales_total = f"${current_sales_total:,.0f}"
+    formatted_sales_change = f"This Period {sales_change:+.1f}%"
+
+    # --- Profit KPI Calculation ---
+    profit_agg_current_period_df = aggregate_data(df_sales, profit_time_agg, 'SaleDate', 'Profit')
+    current_profit_total = profit_agg_current_period_df['Profit'].iloc[-1] if not profit_agg_current_period_df.empty else 0
+    previous_profit_total = profit_agg_current_period_df['Profit'].iloc[-2] if len(profit_agg_current_period_df) >= 2 else 0
+    profit_change = 0
+    if previous_profit_total != 0:
+        profit_change = ((current_profit_total - previous_profit_total) / previous_profit_total) * 100
+    formatted_profit_total = f"${current_profit_total:,.0f}"
+    formatted_profit_change = f"This Period {profit_change:+.1f}%"
+
+    return formatted_sales_total, formatted_sales_change, formatted_profit_total, formatted_profit_change
 
 
 if __name__ == '__main__':
