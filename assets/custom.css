@@ -1074,3 +1074,26 @@ html, body {
 #total-profit-over-time-chart .js-plotly-plot {
     height: 100% !important;
 }
+
+
+/* supplier
+
+.lead-time-low {
+    color: green;
+    font-weight: bold;
+}
+
+.lead-time-very-low {
+    color: green; /* Or a darker green if you want to differentiate from 'low' */
+    font-weight: bold;
+}
+
+.lead-time-medium {
+    color: orange; /* Often used for medium */
+    font-weight: bold;
+}
+
+.lead-time-high {
+    color: red;
+    font-weight: bold;
+}
