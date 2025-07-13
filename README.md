@@ -108,5 +108,7 @@ InvAI is continuously evolving. The following key features are planned for futur
 
 ## **Contact**
 
-For any inquiries or feedback, please contact [shubham.yawalkar@adypu.edu.in](mailto:shubham.yawalkar@adypu.edu.in) / [https://www.linkedin.com/in/shubham-yawalkar/](https://www.linkedin.com/in/shubham-yawalkar/)
+For any inquiries or feedback, please contact [shubham.yawalkar@adypu.edu.in](mailto:shubham.yawalkar@adypu.edu.in) / [siddhi.shendge@adypu.edu.in](mailto:siddhi.shendge@adypu.edu.in) 
+
+[https://www.linkedin.com/in/shubham-yawalkar/](https://www.linkedin.com/in/shubham-yawalkar/) [https://www.linkedin.com/in/siddhi-shendge-9b4baa25b/](https://www.linkedin.com/in/siddhi-shendge-9b4baa25b/)
 
