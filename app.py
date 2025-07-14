@@ -513,7 +513,7 @@ sidebar = html.Div(
     [
         html.Div(
             [
-                html.Img(src="/assets/invaai_logo.png", className="sidebar-logo"),
+                html.Img(src="/assets/invai_logo.png", className="sidebar-logo"),
                 html.H2("InvAI", className="sidebar-title"),
                 html.P("The Brain Behind Your Inventory", className="sidebar-subtitle"),
             ],
