@@ -2530,24 +2530,24 @@ def update_supplier_comparison_table(supplier1_name, supplier2_name, selected_pr
 dummy_carousel_items = [
     {
         "key": "1",
-        "src": "/assets/sales_trend_placeholder_1.png", # Placeholder image path (you'll need to create these)
-        "header": "Overall Sales Growth",
-        "caption": "Consistent growth trend observed across product lines.",
-        "img_alt": "Sales Growth Chart"
+        "src": "/assets/monsoon_raincoat_sales.png", # Placeholder: Chart showing increase in raincoat sales
+        "header": "Monsoon Season Surge: Zeel Raincoat Dominance",
+        "caption": "Significant spike in Zeel Raincoat sales across all regions, driven by early and heavy monsoon showers.",
+        "img_alt": "Line chart showing a sharp increase in Zeel Raincoat sales during monsoon months."
     },
     {
         "key": "2",
-        "src": "/assets/sales_trend_placeholder_2.png",
-        "header": "Top Product Categories",
-        "caption": "Electronics and Home Goods continue to drive significant revenue.",
-        "img_alt": "Product Category Sales Chart"
+        "src": "/assets/health_home_comfort_sales.png", # Placeholder: Chart showing sales of dehumidifiers/air purifiers
+        "header": "Health & Home Comfort: Humidity Solutions",
+        "caption": "Increased demand for dehumidifiers and air purifiers as consumers combat monsoon humidity and associated indoor air quality concerns.",
+        "img_alt": "Bar chart illustrating higher sales of home comfort appliances like dehumidifiers and air purifiers."
     },
     {
-        "key": "3",
-        "src": "/assets/sales_trend_placeholder_3.png",
-        "header": "Regional Performance Insights",
-        "caption": "Strongest sales growth noted in the North and West regions.",
-        "img_alt": "Regional Sales Map"
+        "key": "3", # This is the changed item
+        "src": "/assets/warm_beverages_comfort_food_sales.png", # Placeholder: Chart showing sales of specific F&B items
+        "header": "Warm Beverages & Comfort Food Craze",
+        "caption": "Surge in sales of tea, coffee, instant noodles, and baking essentials, reflecting consumer preference for warm and convenient options during monsoon.",
+        "img_alt": "Chart depicting increased sales of hot beverages and convenience foods."
     }
 ]
 
@@ -2766,6 +2766,9 @@ id="sales-trends-main-content"
 
 
 # --- Manual Carousel Callback ---
+# Assuming dummy_carousel_items is defined correctly at the top of your app.py
+
+# Callback to update the manual carousel content and index
 @app.callback(
     Output('manual-carousel-content', 'children'),
     Output('current-carousel-index', 'data'),
@@ -2784,46 +2787,60 @@ def update_manual_carousel(n_clicks_prev, n_clicks_next, current_index):
 
     num_items = len(dummy_carousel_items)
 
+    new_index = current_index
     if button_id == 'next-carousel-btn':
         new_index = (current_index + 1) % num_items
     elif button_id == 'prev-carousel-btn':
         new_index = (current_index - 1 + num_items) % num_items
-    else:
-        # Fallback for initial load if somehow triggered, though prevent_initial_call should handle
-        new_index = current_index
+    # No 'else' needed here, as prevent_initial_call handles initial state
 
     # Create the content for the current slide
     item = dummy_carousel_items[new_index]
     carousel_slide_content = html.Div(
         [
-            html.Img(src=item["src"], className="img-fluid mb-2", style={'max-height': '250px', 'object-fit': 'cover', 'width': 'auto'}), # Added style for image
-            html.H4(item["header"], className="text-dark"), # Changed text color from white
-            html.P(item["caption"], className="text-muted")  # Changed text color from white
+            # Image Container: Use a div to control image dimensions and centering
+            html.Div(
+                html.Img(
+                    src=item["src"],
+                    alt=item["img_alt"],
+                    className="manual-carousel-image" # Apply custom CSS class here
+                ),
+                className="manual-carousel-image-container" # Apply custom CSS class here
+            ),
+            html.H5(item["header"], className="manual-carousel-header"), # Use custom class for H5
+            html.P(item["caption"], className="manual-carousel-caption") # Use custom class for P
         ],
-        className="d-flex flex-column align-items-center justify-content-center", # Center content
+        className="d-flex flex-column align-items-center justify-content-center manual-carousel-slide", # Add custom class for slide
         style={'height': '100%'} # Ensure inner div takes full height of parent container
     )
 
     return carousel_slide_content, new_index
 
-# Add a callback to display the first item on initial load
+# Callback to display the first item on initial load
 @app.callback(
     Output('manual-carousel-content', 'children', allow_duplicate=True),
     Input('current-carousel-index', 'data'), # This input will be triggered by initial data=0
     prevent_initial_call='initial_duplicate'
 )
 def display_initial_carousel_item(current_index):
-    if current_index is None: # Should not happen if data=0 is set
-        current_index = 0
+    if current_index is None:
+        current_index = 0 # Fallback, though data=0 should ensure it's not None
 
     item = dummy_carousel_items[current_index]
     carousel_slide_content = html.Div(
         [
-            html.Img(src=item["src"], className="img-fluid mb-2", style={'max-height': '250px', 'object-fit': 'cover', 'width': 'auto'}),
-            html.H4(item["header"], className="text-dark"),
-            html.P(item["caption"], className="text-muted")
+            html.Div(
+                html.Img(
+                    src=item["src"],
+                    alt=item["img_alt"],
+                    className="manual-carousel-image"
+                ),
+                className="manual-carousel-image-container"
+            ),
+            html.H5(item["header"], className="manual-carousel-header"),
+            html.P(item["caption"], className="manual-carousel-caption")
         ],
-        className="d-flex flex-column align-items-center justify-content-center",
+        className="d-flex flex-column align-items-center justify-content-center manual-carousel-slide",
         style={'height': '100%'}
     )
     return carousel_slide_content
