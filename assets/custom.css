@@ -1097,3 +1097,113 @@ html, body {
     color: red;
     font-weight: bold;
 }
+
+
+/* --- Overall Container for the Manual Carousel --- */
+#manual-carousel-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Centers content horizontally */
+    justify-content: flex-start; /* Aligns content to the top within min-height */
+    min-height: 400px; /* Increased min-height to give more space for image and text */
+    padding: 25px; /* More padding for breathing room */
+    background-color: #ffffff;
+    border-radius: 10px; /* Slightly more rounded corners */
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08); /* More prominent shadow for the card */
+    position: relative; /* Needed for potential future animations */
+    overflow: hidden; /* Ensure nothing spills out */
+}
+
+/* --- Individual Carousel Slide Styling --- */
+.manual-carousel-slide {
+    width: 100%; /* Ensure the slide takes full width of its container */
+    height: 100%; /* Ensure the slide takes full height to center content */
+    text-align: center; /* Center text within the slide */
+    /* Add a fade-in/fade-out transition */
+    animation: fadeIn 0.8s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+
+/* --- Image Container Styling --- */
+/* --- Image Container Styling (remains similar, focusing on containing full-width image) --- */
+.manual-carousel-image-container {
+    width: 100%; /* Important: This container will stretch to almost full width of #manual-carousel-content */
+    max-width: 600px; /* Optional: You can set a max-width for the image block itself if you don't want it super wide on large screens */
+    height: 250px; /* Fixed height for consistency, image will fit within this */
+    overflow: hidden;
+    margin-bottom: 25px;
+    border-radius: 8px;
+    box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+    background-color: #f0f0f0;
+    display: flex; /* Use flexbox to perfectly center the image within its fixed area */
+    align-items: center;
+    justify-content: center;
+}
+
+/* --- Image Styling (Image takes full width of its container) --- */
+.manual-carousel-image {
+    width: 100%; /* Crucial: Make image take full width of its container */
+    max-height: 100%; /* Ensure image height fits within container's height */
+    object-fit: contain; /* Scales image to fit without cropping, preserving aspect ratio */
+    display: block; /* Ensures proper rendering */
+    /* Remove margin: 0 auto; as width: 100% and flexbox centering handles it */
+}
+
+
+/* --- Text Styling --- */
+.manual-carousel-header {
+    font-size: 2.2rem; /* Even larger font size for prominence */
+    font-weight: 800; /* Extra bold */
+    color: #007bff; /* A distinct blue color for the header (Bootstrap primary blue) */
+    /* You could also use a custom color like: color: #1a5e2d; for a dark green */
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.1); /* Subtle text shadow for depth */
+    margin-bottom: 15px; /* More space below header */
+    line-height: 1.2;
+    text-align: center;
+}
+
+/* --- Caption Text Styling (Subtle Look) --- */
+.manual-carousel-caption {
+    font-size: 1.05rem; /* Slightly larger than default, but smaller than header */
+    color: #6c757d; /* Muted gray for captions, providing contrast to header */
+    line-height: 1.6;
+    max-width: 750px; /* Allow wider caption for more text */
+    text-align: center;
+    margin-bottom: 0;
+    font-style: italic; /* Optional: Make caption italic for more differentiation */
+}
+
+/* --- Button Styling (Adjusted for better visual integration) --- */
+/* Ensure your buttons use 'btn-primary' and 'btn-outline-primary' classes */
+.btn-primary {
+    background-color: #28a745; /* A standard green */
+    border-color: #28a745;
+    font-weight: bold;
+    padding: 10px 25px; /* Larger padding for easier clicks */
+    border-radius: 5px;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: #218838; /* Darker green on hover */
+    border-color: #1e7e34;
+}
+
+.btn-outline-primary {
+    border-color: #28a745;
+    color: #28a745;
+    font-weight: bold;
+    padding: 10px 25px;
+    border-radius: 5px;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+.btn-outline-primary:hover {
+    background-color: #28a745;
+    color: white;
+}
